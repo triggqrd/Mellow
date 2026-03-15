@@ -19,6 +19,10 @@ import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
+import com.roxiun.mellow.feature.requeue.RequeueFeature;
+import com.roxiun.mellow.feature.requeue.commands.RequeueCommand;
+import com.roxiun.mellow.feature.requeue.commands.RequeuePartyListCommand;
+import com.roxiun.mellow.feature.requeue.commands.RqCommand;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.event.ChatEventRouter;
@@ -131,6 +135,7 @@ public class Mellow {
             .addGameStateListener(partyBlacklistWarningService::onSnapshotUpdate);
 
         nickUtils = new NickUtils(playerCache, config);
+        RequeueFeature.init(config);
 
         TagUtils tagUtils = new TagUtils(this, blacklistManager);
         NumberDenicker numberDenicker = new NumberDenicker(
@@ -244,6 +249,9 @@ public class Mellow {
         registerCommand(new ClientCommand(seraphApi, mojangApi, config));
         registerCommand(new WinstreakCommand(playerCache, config));
         registerCommand(new ReplayCommand(replayManager));
+        registerCommand(new RequeueCommand());
+        registerCommand(new RqCommand());
+        registerCommand(new RequeuePartyListCommand());
     }
 
     public StatsProvider getStatsProvider() {

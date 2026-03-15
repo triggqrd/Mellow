@@ -42,6 +42,58 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Auto Update Check", subcategory = "General")
     public boolean autoUpdateCheck = true;
 
+    // Requeue configuration
+
+    @Switch(
+        name = "Enable Requeue Features",
+        category = "Requeue",
+        description = "Master toggle for all automatic requeue utilities."
+    )
+    public boolean requeueEnabled = true;
+
+    @Switch(
+        name = "Auto Requeue",
+        category = "Requeue",
+        description = "Attempts to automatically /play the next game when your party is dead."
+    )
+    public boolean requeueAuto = false;
+
+    @Switch(
+        name = "Requeue Safeguard",
+        category = "Requeue",
+        description = "Blocks /rq if any tracked party member is still alive."
+    )
+    public boolean requeueSafeguard = true;
+
+    @Switch(
+        name = "Consider Client Player",
+        category = "Requeue",
+        description = "Treats your own player as part of the party when checking if everyone is dead."
+    )
+    public boolean requeueConsiderClient = true;
+
+    @Switch(
+        name = "Kick Offline Party Members",
+        category = "Requeue",
+        description = "Automatically runs /p kickoffline after someone disconnects."
+    )
+    public boolean requeueKickOffline = true;
+
+    @Switch(
+        name = "Requeue On Win",
+        category = "Requeue",
+        description = "Triggers an automatic requeue shortly after the game end screen."
+    )
+    public boolean requeueOnWin = false;
+
+    @Switch(
+        name = "Hypixel Only",
+        category = "Requeue",
+        description = "Only allows requeue logic to run while connected to Hypixel."
+    )
+    public boolean requeueHypixelOnly = true;
+
+
     @Switch(
         name = "Record Bedwars Replays",
         category = "Replays",
