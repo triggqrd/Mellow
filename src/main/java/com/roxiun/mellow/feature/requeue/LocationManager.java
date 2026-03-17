@@ -1,6 +1,7 @@
 package com.roxiun.mellow.feature.requeue;
 
 import com.roxiun.mellow.feature.requeue.listeners.ChatListener;
+import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -48,7 +49,7 @@ public class LocationManager {
         }
         try {
             JsonObject obj = parser.parse(message).getAsJsonObject();
-            gameType = obj.has("gametype") ? obj.get("gametype").getAsString().trim() : null;
+            gameType = obj.has("gametype") ? obj.get("gametype").getAsString().trim().toUpperCase(Locale.ROOT) : null;
             gameMode = obj.has("mode") ? obj.get("mode").getAsString() : null;
             awaitingLocraw = false;
         } catch (IllegalStateException | JsonSyntaxException e) {
@@ -69,7 +70,6 @@ public class LocationManager {
         }
         chatHandler.criteria.clear();
         chatHandler.criteria.add("{\"server\":");
-        awaitingLocraw = false;
         if (mc.thePlayer != null) {
             mc.thePlayer.sendChatMessage("/locraw");
         }

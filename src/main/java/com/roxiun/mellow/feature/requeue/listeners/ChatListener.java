@@ -157,7 +157,7 @@ public class ChatListener {
         if (feature.isUsingWhoRequeue() && LocationManager.instance != null) {
             String type = LocationManager.instance.getType();
             if (type == null) return;
-            switch (type.toUpperCase()) {
+            switch (type) {
                 case "SKYWARS":
                     handleSkywars(removedColors);
                     break;
@@ -194,20 +194,22 @@ public class ChatListener {
 
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
         RequeueFeature feature = RequeueFeature.INSTANCE;
         if (feature != null && feature.isUsingWhoRequeue()) {
+            LocationManager location = LocationManager.instance;
             if (
-                LocationManager.instance != null &&
-                LocationManager.instance.getType() != null &&
-                !LocationManager.instance.getType().equalsIgnoreCase("SKYWARS")
+                location != null &&
+                location.getType() != null &&
+                !location.getType().equals("SKYWARS")
             ) {
                 ((WhoRequeue) feature.getRequeue()).setDelayedValid(false);
             }
         }
-        if (!criteria.isEmpty() && waitingSince == Long.MAX_VALUE) {
+        if (criteria.isEmpty()) return;
+        if (waitingSince == Long.MAX_VALUE) {
             waitingSince = System.currentTimeMillis();
-        }
-        if (System.currentTimeMillis() - waitingSince > 5000) {
+        } else if (System.currentTimeMillis() - waitingSince > 5000) {
             criteria.clear();
             waitingSince = Long.MAX_VALUE;
         }

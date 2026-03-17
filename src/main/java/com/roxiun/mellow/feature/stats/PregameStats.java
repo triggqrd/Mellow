@@ -11,6 +11,7 @@ import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.feature.alerts.AlertSoundGate;
+import com.roxiun.mellow.feature.requeue.AutododgeService;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
@@ -80,7 +81,8 @@ public class PregameStats {
     }
 
     public void onChat(ClientChatReceivedEvent event) {
-        if (!config.pregameStats && !config.mentionLobbyStats) {
+        boolean autododgeActive = config.autododgeEnabled;
+        if (!config.pregameStats && !config.mentionLobbyStats && !autododgeActive) {
             return;
         }
 
@@ -93,8 +95,9 @@ public class PregameStats {
 
         boolean pregameTriggerEnabled = config.pregameStats && inPregameLobby;
         boolean mentionTriggerEnabled = config.mentionLobbyStats && inBedwarsLobby;
+        boolean autododgeTriggerEnabled = autododgeActive && inPregameLobby;
 
-        if (!pregameTriggerEnabled && !mentionTriggerEnabled) {
+        if (!pregameTriggerEnabled && !mentionTriggerEnabled && !autododgeTriggerEnabled) {
             return;
         }
 
@@ -114,7 +117,7 @@ public class PregameStats {
 
         boolean isMention = mentionTriggerEnabled &&
         containsSelfMention(parsedMessage.content);
-        boolean shouldLookup = pregameTriggerEnabled || isMention;
+        boolean shouldLookup = pregameTriggerEnabled || isMention || autododgeTriggerEnabled;
         if (!shouldLookup) {
             return;
         }
@@ -128,11 +131,22 @@ public class PregameStats {
             return;
         }
 
-        if (!alreadyLookedUp.add(username.toLowerCase())) {
+        if (!alreadyLookedUp.add(username.toLowerCase(Locale.ROOT))) {
             return;
         }
 
-        AsyncExecutor.getInstance().profileIo(() -> handlePlayer(username, true));
+        // Fast path: tab list UUID check for nicked players (instant, no API call)
+        if (config.autododgeEnabled && config.autododgeNicked
+            && PlayerUtils.isNickedOrNpc(username)) {
+            AutododgeService autododge = AutododgeService.getInstance();
+            if (autododge != null) {
+                autododge.checkNickedAndDodge(username, true);
+            }
+            return;
+        }
+
+        boolean shouldSendStats = pregameTriggerEnabled || isMention;
+        AsyncExecutor.getInstance().profileIo(() -> handlePlayer(username, shouldSendStats));
     }
 
     private ParsedChatMessage parseChatMessage(String message) {
@@ -187,7 +201,15 @@ public class PregameStats {
         PlayerProfile profile = result.getProfile();
 
         if (profile == null || profile.getBedwarsPlayer() == null) {
+            // UUID_UNAVAILABLE means the username doesn't resolve to a
+            // Mojang account — the player is nicked.
             if (shouldSuppressFailureMessage(result)) {
+                if (config.autododgeEnabled && config.autododgeNicked) {
+                    AutododgeService autododge = AutododgeService.getInstance();
+                    if (autododge != null) {
+                        autododge.checkNickedAndDodge(username, true);
+                    }
+                }
                 return;
             }
             if (sendStats) {
@@ -207,6 +229,13 @@ public class PregameStats {
         UUID uuid = UUIDUtils.fromString(profile.getUuid());
         if (isPartyMember(uuid)) {
             return;
+        }
+
+        if (config.autododgeEnabled) {
+            AutododgeService autododge = AutododgeService.getInstance();
+            if (autododge != null) {
+                autododge.checkAndDodge(username, profile.getBedwarsPlayer(), true);
+            }
         }
 
         boolean blacklisted = blacklistManager.isBlacklisted(uuid);

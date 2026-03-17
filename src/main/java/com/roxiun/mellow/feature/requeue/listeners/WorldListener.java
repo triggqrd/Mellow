@@ -1,5 +1,6 @@
 package com.roxiun.mellow.feature.requeue.listeners;
 
+import com.roxiun.mellow.feature.requeue.AutododgeService;
 import com.roxiun.mellow.feature.requeue.LocationManager;
 import com.roxiun.mellow.feature.requeue.RequeueFeature;
 import com.roxiun.mellow.feature.requeue.auto.IAutoRequeue;
@@ -21,6 +22,10 @@ public class WorldListener {
         IAutoRequeue requeue = feature.getRequeue();
         if (requeue != null) {
             requeue.requeueCleanup();
+        }
+        AutododgeService autododge = AutododgeService.getInstance();
+        if (autododge != null) {
+            autododge.resetForNewLobby();
         }
     }
 }

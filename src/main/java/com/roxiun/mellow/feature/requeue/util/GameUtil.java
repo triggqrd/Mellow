@@ -6,6 +6,8 @@ import net.minecraft.client.Minecraft;
 
 public class GameUtil {
 
+    private static String lastGameId;
+
     public static String getGameID(String type, String mode) {
         if (mode == null) return null;
         if ("normal".equals(mode) && !"GINGERBREAD".equals(type) && !"MCGO".equals(type)) {
@@ -82,7 +84,11 @@ public class GameUtil {
             return;
         }
         String id = getGameID(locationManager.getType(), locationManager.getMode());
-        if (id == null) {
+        if (id != null) {
+            lastGameId = id;
+        } else if (lastGameId != null) {
+            id = lastGameId;
+        } else {
             RequeueChatUtil.sendMessage("There was an issue finding your game mode right now!");
             return;
         }

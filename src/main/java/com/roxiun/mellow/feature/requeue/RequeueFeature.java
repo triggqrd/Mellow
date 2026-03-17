@@ -13,13 +13,9 @@ import com.roxiun.mellow.feature.requeue.util.Timer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.common.MinecraftForge;
-import org.lwjgl.input.Keyboard;
 
 public class RequeueFeature {
 
@@ -52,9 +48,9 @@ public class RequeueFeature {
     private ChatListener chatListener;
     private TickListener tickListener;
     private IAutoRequeue requeueStrategy;
-    private KeyBinding requeueKeybind;
     private LocationManager locationManager;
     private PartyManager partyManager;
+    private AutododgeService autododgeService;
 
     public RequeueFeature(MellowOneConfig config) {
         this.config = config;
@@ -73,12 +69,10 @@ public class RequeueFeature {
         chatListener = new ChatListener();
         locationManager = new LocationManager();
         tickListener = new TickListener();
+        autododgeService = new AutododgeService(config);
         MinecraftForge.EVENT_BUS.register(chatListener);
         MinecraftForge.EVENT_BUS.register(tickListener);
         MinecraftForge.EVENT_BUS.register(new WorldListener());
-
-        requeueKeybind = new KeyBinding("Requeue (/rq)", Keyboard.KEY_NONE, "Mellow");
-        ClientRegistry.registerKeyBinding(requeueKeybind);
     }
 
     public boolean isFeatureEnabled() {
@@ -102,8 +96,19 @@ public class RequeueFeature {
         if (ip == null) {
             return false;
         }
-        String normalized = ip.toLowerCase(Locale.ROOT);
-        return normalized.contains("hypixel.net") || normalized.contains("hypixel.io");
+        return containsIgnoreCase(ip, "hypixel.net")
+            || containsIgnoreCase(ip, "hypixel.io");
+    }
+
+    private static boolean containsIgnoreCase(String str, String sub) {
+        int subLen = sub.length();
+        int max = str.length() - subLen;
+        for (int i = 0; i <= max; i++) {
+            if (str.regionMatches(true, i, sub, 0, subLen)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean isAutoEnabled() {
@@ -158,8 +163,8 @@ public class RequeueFeature {
         return partyManager;
     }
 
-    public KeyBinding getRequeueKeybind() {
-        return requeueKeybind;
+    public AutododgeService getAutododgeService() {
+        return autododgeService;
     }
 
     public Set<String> getExcludedGames() {

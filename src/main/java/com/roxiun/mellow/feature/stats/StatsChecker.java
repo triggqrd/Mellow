@@ -18,6 +18,7 @@ import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.alerts.AlertSoundGate;
 import com.roxiun.mellow.feature.nicks.NickUtils;
+import com.roxiun.mellow.feature.requeue.AutododgeService;
 import com.roxiun.mellow.feature.stats.tab.ExtendedTabStatsColumns;
 import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.gamestate.GameSnapshot;
@@ -156,10 +157,13 @@ public class StatsChecker {
             if (playerName == null || playerName.isEmpty()) {
                 continue;
             }
-            if (nickUtils.isNicked(playerName)) {
-                continue;
-            }
-            if (PlayerUtils.isNickedOrNpc(playerName)) {
+            if (nickUtils.isNicked(playerName) || PlayerUtils.isNickedOrNpc(playerName)) {
+                if (config.autododgeEnabled && config.autododgeNicked) {
+                    AutododgeService autododge = AutododgeService.getInstance();
+                    if (autododge != null) {
+                        autododge.checkNickedAndDodge(playerName, false);
+                    }
+                }
                 continue;
             }
 
@@ -187,6 +191,16 @@ public class StatsChecker {
                         maybeReportLiveFetchFailure(playerName, result);
                         return;
                     }
+
+                    if (config.autododgeEnabled
+                        && activeScope == StatScope.BEDWARS
+                        && profile.getBedwarsPlayer() != null) {
+                        AutododgeService autododge = AutododgeService.getInstance();
+                        if (autododge != null) {
+                            autododge.checkAndDodge(playerName, profile.getBedwarsPlayer(), false);
+                        }
+                    }
+
                     boolean passesFilters = passesScopeFilters(
                         profile,
                         activeScope

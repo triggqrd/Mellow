@@ -18,8 +18,7 @@ public class ChatEventRouter {
     private static final String AUTO_WHO_RESPONSE_PREFIX = "ONLINE: ";
     private static final int AUTO_WHO_RESPONSE_PREFIX_LENGTH =
         AUTO_WHO_RESPONSE_PREFIX.length();
-    // Few chat lines immediately follow the server-side /who response.
-    private static final int AUTO_WHO_RESPONSE_WATCH_LIMIT = 6;
+    private static final long AUTO_WHO_HIDE_WINDOW_MS = 10_000;
 
     private final Minecraft mc = Minecraft.getMinecraft();
     private final MellowOneConfig config;
@@ -27,7 +26,7 @@ public class ChatEventRouter {
     private final PregameStats pregameStats;
     private final RequestPopupService requestPopupService;
 
-    private int autoWhoResponseWatchRemaining;
+    private long autoWhoHideUntil;
 
     public ChatEventRouter(
         MellowOneConfig config,
@@ -50,7 +49,7 @@ public class ChatEventRouter {
         ReplayManager.getInstance().onChatReceived(event.message, event.type);
 
         if (!Mellow.isEnabled()) {
-            autoWhoResponseWatchRemaining = 0;
+            autoWhoHideUntil = 0;
             return;
         }
 
@@ -58,9 +57,7 @@ public class ChatEventRouter {
         boolean hideAutoWhoResponse =
             autoWhoEnabled && config.hideAutoWhoResponse;
 
-        if (!hideAutoWhoResponse) {
-            autoWhoResponseWatchRemaining = 0;
-        } else if (autoWhoResponseWatchRemaining > 0) {
+        if (hideAutoWhoResponse && autoWhoHideUntil > System.currentTimeMillis()) {
             if (
                 message.length() >= AUTO_WHO_RESPONSE_PREFIX_LENGTH &&
                 message.regionMatches(
@@ -70,11 +67,10 @@ public class ChatEventRouter {
                     AUTO_WHO_RESPONSE_PREFIX_LENGTH
                 )
             ) {
-                autoWhoResponseWatchRemaining = 0;
+                autoWhoHideUntil = 0;
                 event.setCanceled(true);
                 return;
             }
-            autoWhoResponseWatchRemaining--;
         }
 
         numberDenicker.onChat(event);
@@ -89,8 +85,9 @@ public class ChatEventRouter {
             (BedwarsChatSignalParser.isBedwarsStartMessage(message) ||
                 BedwarsChatSignalParser.isBedwarsRespawnMessage(message))
         ) {
-            autoWhoResponseWatchRemaining =
-                hideAutoWhoResponse ? AUTO_WHO_RESPONSE_WATCH_LIMIT : 0;
+            if (hideAutoWhoResponse) {
+                autoWhoHideUntil = System.currentTimeMillis() + AUTO_WHO_HIDE_WINDOW_MS;
+            }
             mc.thePlayer.sendChatMessage("/who");
         }
     }

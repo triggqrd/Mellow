@@ -6,9 +6,12 @@ import cc.polyfrost.oneconfig.config.annotations.Checkbox;
 import cc.polyfrost.oneconfig.config.annotations.Dropdown;
 import cc.polyfrost.oneconfig.config.annotations.HUD;
 import cc.polyfrost.oneconfig.config.annotations.Info;
+import cc.polyfrost.oneconfig.config.annotations.KeyBind;
 import cc.polyfrost.oneconfig.config.annotations.Number;
+import cc.polyfrost.oneconfig.config.annotations.Slider;
 import cc.polyfrost.oneconfig.config.annotations.Switch;
 import cc.polyfrost.oneconfig.config.annotations.Text;
+import cc.polyfrost.oneconfig.config.core.OneKeyBind;
 import cc.polyfrost.oneconfig.config.data.InfoType;
 import cc.polyfrost.oneconfig.config.data.Mod;
 import cc.polyfrost.oneconfig.config.data.ModType;
@@ -50,6 +53,21 @@ public class MellowOneConfig extends Config {
         description = "Master toggle for all automatic requeue utilities."
     )
     public boolean requeueEnabled = true;
+
+    @Info(
+        text = "Credits to spacebyte for the requeue logic :)",
+        type = InfoType.INFO,
+        size = OptionSize.SINGLE,
+        category = "Requeue"
+    )
+    public static boolean ignoredRequeueCredits;
+
+    @KeyBind(
+        name = "Requeue Keybind",
+        category = "Requeue",
+        description = "Press to requeue into the current game mode."
+    )
+    public OneKeyBind requeueKeybind = new OneKeyBind();
 
     @Switch(
         name = "Auto Requeue",
@@ -93,6 +111,54 @@ public class MellowOneConfig extends Config {
     )
     public boolean requeueHypixelOnly = true;
 
+    // Autododge configuration
+
+    @Switch(
+        name = "Enable Autododge",
+        category = "Requeue",
+        subcategory = "Autododge",
+        description = "Automatically requeues when a player exceeds the FKDR or star threshold."
+    )
+    public boolean autododgeEnabled = false;
+
+    @Slider(
+        name = "Minimum FKDR to Dodge",
+        category = "Requeue",
+        subcategory = "Autododge",
+        description = "Requeues if any opponent has an FKDR at or above this value. Set to 0 to disable.",
+        min = 0,
+        max = 25,
+        step = 0
+    )
+    public float autododgeMinFkdr = 10;
+
+    @Slider(
+        name = "Minimum Stars to Dodge",
+        category = "Requeue",
+        subcategory = "Autododge",
+        description = "Requeues if any opponent has a star count at or above this value. Set to 0 to disable.",
+        min = 0,
+        max = 1000,
+        step = 0
+    )
+    public int autododgeMinStars = 500;
+
+    @Switch(
+        name = "Dodge Nicked Players",
+        category = "Requeue",
+        subcategory = "Autododge",
+        description = "Automatically requeues when a nicked player is detected."
+    )
+    public boolean autododgeNicked = false;
+
+    @Dropdown(
+        name = "Dodge Mode",
+        category = "Requeue",
+        subcategory = "Autododge",
+        description = "When autododge should activate.",
+        options = { "Pregame Only", "Pregame & In-game" }
+    )
+    public int autododgeMode = 0;
 
     @Switch(
         name = "Record Bedwars Replays",
@@ -1572,6 +1638,11 @@ public class MellowOneConfig extends Config {
         initialize();
         sanitizeDropdownIndexes();
 
+        hideIf("autododgeMinFkdr", () -> !autododgeEnabled);
+        hideIf("autododgeMinStars", () -> !autododgeEnabled);
+        hideIf("autododgeNicked", () -> !autododgeEnabled);
+        hideIf("autododgeMode", () -> !autododgeEnabled);
+
         hideIf("hitboxHueValue", () -> hitboxHueMode == 0);
         hideIf("hitboxHueOffset", () -> hitboxHueMode != 0);
         hideIf("hitboxSaturationValue", () -> hitboxSaturationMode == 0);
@@ -1638,6 +1709,7 @@ public class MellowOneConfig extends Config {
         hitboxSaturationMode = clampIndex(hitboxSaturationMode, 2);
         hitboxBrightnessMode = clampIndex(hitboxBrightnessMode, 2);
         nametagClientIconPosition = clampIndex(nametagClientIconPosition, 2);
+        autododgeMode = clampIndex(autododgeMode, 2);
     }
 
     private int clampIndex(int value, int optionCount) {
