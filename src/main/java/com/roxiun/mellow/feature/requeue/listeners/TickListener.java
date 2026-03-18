@@ -7,8 +7,6 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.feature.requeue.AutododgeService;
 import com.roxiun.mellow.feature.requeue.LocationManager;
 import com.roxiun.mellow.feature.requeue.RequeueFeature;
-import com.roxiun.mellow.feature.requeue.auto.TabRequeue;
-import com.roxiun.mellow.feature.requeue.auto.WhoRequeue;
 import com.roxiun.mellow.feature.requeue.util.GameUtil;
 import com.roxiun.mellow.feature.requeue.util.RequeueChatUtil;
 import com.roxiun.mellow.feature.requeue.util.Timer;
@@ -76,12 +74,12 @@ public class TickListener {
             endRequeueTriggered = false;
             return;
         }
-        if (feature.getExcludedGames().contains(type)) {
+        if (!"BEDWARS".equalsIgnoreCase(type)) {
             return;
         }
 
         handleWinRequeue();
-        handleAuto(feature, type, mode);
+        handleAuto();
     }
 
     private void handleNickScan() {
@@ -136,7 +134,9 @@ public class TickListener {
         feature.getRequeueTimer().reset();
         RequeueChatUtil.sendMessage("Attempted requeue.");
         feature.getRequeue().requeueCleanup();
-        mc.thePlayer.sendChatMessage("/play " + id);
+        if (mc.thePlayer != null) {
+            mc.thePlayer.sendChatMessage("/play " + id);
+        }
     }
 
     private void handleWinRequeue() {
@@ -155,28 +155,19 @@ public class TickListener {
         }
     }
 
-    private void handleAuto(RequeueFeature feature, String type, String mode) {
-        if (!feature.isAutoEnabled()) return;
-        if (type.equals("DUELS")) return;
-        if (type.equals("ARCADE") && mode.equals("PARTY")) return;
+    private void handleAuto() {
+        if (!RequeueFeature.INSTANCE.isAutoEnabled()) return;
 
-        boolean useTab = type.equals("PROTOTYPE");
-        if (useTab && !(feature.getRequeue() instanceof TabRequeue)) {
-            feature.setRequeue(new TabRequeue());
+        if (RequeueFeature.INSTANCE.getRequeue().onTick()) {
+            // Auto requeue fired — cancel any pending win requeue
+            // to prevent sending /play twice
+            endRequeueTriggered = false;
         }
-        if (!useTab && !feature.isUsingWhoRequeue()) {
-            feature.setRequeue(new WhoRequeue());
-        }
-        feature.getRequeue().onTick();
     }
 
     private void handleLocraw(LocationManager location) {
         if (location == null) return;
-        if (!location.isAwaitingLocraw()) {
-            locrawSentThisCycle = false;
-            locrawRetries = 0;
-            return;
-        }
+        if (!location.isAwaitingLocraw()) return;
         if (mc.theWorld == null || mc.thePlayer == null) return;
         if (mc.currentScreen instanceof GuiDownloadTerrain) return;
 

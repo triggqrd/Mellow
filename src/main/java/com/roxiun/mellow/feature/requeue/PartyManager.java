@@ -23,7 +23,7 @@ public class PartyManager {
             return;
         }
         String normalized = player.trim();
-        if (!party.contains(normalized)) {
+        if (!partyContains(normalized)) {
             party.add(normalized);
         }
     }
@@ -44,10 +44,16 @@ public class PartyManager {
     }
 
     public boolean partyContains(String player) {
-        return party.contains(player);
+        if (player == null) return false;
+        for (String current : party) {
+            if (current.equalsIgnoreCase(player)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public List<String> getParty() {
-        return party;
+        return new ArrayList<>(party);
     }
 }

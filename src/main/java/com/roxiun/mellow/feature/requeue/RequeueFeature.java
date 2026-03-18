@@ -2,18 +2,11 @@ package com.roxiun.mellow.feature.requeue;
 
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.config.MellowOneConfig;
-import com.roxiun.mellow.feature.requeue.auto.IAutoRequeue;
-import com.roxiun.mellow.feature.requeue.auto.WhoRequeue;
-import com.roxiun.mellow.feature.requeue.LocationManager;
-import com.roxiun.mellow.feature.requeue.PartyManager;
+import com.roxiun.mellow.feature.requeue.auto.TabRequeue;
 import com.roxiun.mellow.feature.requeue.listeners.ChatListener;
 import com.roxiun.mellow.feature.requeue.listeners.TickListener;
 import com.roxiun.mellow.feature.requeue.listeners.WorldListener;
 import com.roxiun.mellow.feature.requeue.util.Timer;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -24,37 +17,19 @@ public class RequeueFeature {
     public static final String PRIMARY_COLOR = "§c";
     public static final String TEXT_COLOR = "§e";
 
-    private static final Set<String> EXCLUDED_GAMES =
-        Collections.unmodifiableSet(
-            new HashSet<>(
-                Arrays.asList(
-                    "BEDWARS",
-                    "PAINTBALL",
-                    "QUAKECRAFT",
-                    "ARENA",
-                    "GINGERBREAD",
-                    "WALLS3",
-                    "PIT",
-                    "SKYBLOCK",
-                    "REPLAY",
-                    "HOUSING"
-                )
-            )
-        );
-
     private final Timer requeueTimer = new Timer();
     private final MellowOneConfig config;
 
     private ChatListener chatListener;
     private TickListener tickListener;
-    private IAutoRequeue requeueStrategy;
+    private TabRequeue requeueStrategy;
     private LocationManager locationManager;
     private PartyManager partyManager;
     private AutododgeService autododgeService;
 
     public RequeueFeature(MellowOneConfig config) {
         this.config = config;
-        this.requeueStrategy = new WhoRequeue();
+        this.requeueStrategy = new TabRequeue();
         INSTANCE = this;
     }
 
@@ -131,20 +106,24 @@ public class RequeueFeature {
         return config.requeueOnWin;
     }
 
+    public long getAutoRequeueDelayMs() {
+        String delay = config.requeueAutoDelay;
+        if (delay == null || delay.isEmpty()) return 10000;
+        try {
+            double seconds = Double.parseDouble(delay.trim());
+            if (seconds < 0) seconds = 0;
+            return (long) (seconds * 1000);
+        } catch (NumberFormatException e) {
+            return 10000;
+        }
+    }
+
     public Timer getRequeueTimer() {
         return requeueTimer;
     }
 
-    public IAutoRequeue getRequeue() {
+    public TabRequeue getRequeue() {
         return requeueStrategy;
-    }
-
-    public void setRequeue(IAutoRequeue strategy) {
-        this.requeueStrategy = strategy;
-    }
-
-    public boolean isUsingWhoRequeue() {
-        return requeueStrategy instanceof WhoRequeue;
     }
 
     public ChatListener getChatListener() {
@@ -165,10 +144,6 @@ public class RequeueFeature {
 
     public AutododgeService getAutododgeService() {
         return autododgeService;
-    }
-
-    public Set<String> getExcludedGames() {
-        return EXCLUDED_GAMES;
     }
 
     public MellowOneConfig getConfig() {

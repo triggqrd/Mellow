@@ -3,7 +3,6 @@ package com.roxiun.mellow.feature.requeue.listeners;
 import com.roxiun.mellow.feature.requeue.LocationManager;
 import com.roxiun.mellow.feature.requeue.PartyManager;
 import com.roxiun.mellow.feature.requeue.RequeueFeature;
-import com.roxiun.mellow.feature.requeue.auto.WhoRequeue;
 import com.roxiun.mellow.feature.requeue.util.RequeueChatUtil;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +13,20 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 public class ChatListener {
 
-    public final List<String> criteria = new ArrayList<>();
+    private final List<String> criteria = new ArrayList<>();
     private long waitingSince = Long.MAX_VALUE;
     private final Minecraft mc = Minecraft.getMinecraft();
+
+    /**
+     * Sets the criteria for hiding the next matching chat message.
+     * Used by LocationManager to suppress /locraw JSON output.
+     * Resets the timeout so retries get a fresh 5-second window.
+     */
+    public void setHideCriteria(String criterion) {
+        criteria.clear();
+        criteria.add(criterion);
+        waitingSince = Long.MAX_VALUE;
+    }
 
     public void listenForJoins(String noColors) {
         if (noColors.contains(":")) return;
@@ -94,15 +104,6 @@ public class ChatListener {
         }
     }
 
-    private void parseAsWho(String message) {
-        String[] playerList = message.split(":", 2)[1].split(",");
-        WhoRequeue who = (WhoRequeue) RequeueFeature.INSTANCE.getRequeue();
-        who.clearWhoNames();
-        for (String p : playerList) {
-            who.addWhoName(p.trim());
-        }
-    }
-
     @SubscribeEvent
     public void onChat(ClientChatReceivedEvent event) {
         RequeueFeature feature = RequeueFeature.INSTANCE;
@@ -121,6 +122,7 @@ public class ChatListener {
         }
 
         listenForParty(message);
+        listenForFinalKills(removedColors);
 
         if (message.startsWith("{\"server\":")) {
             if (LocationManager.instance != null) {
@@ -128,66 +130,32 @@ public class ChatListener {
             }
         }
 
-        if (
-            LocationManager.instance != null &&
-            LocationManager.instance.isLocrawValid() &&
-            LocationManager.instance.getMode() != null &&
-            LocationManager.instance.getMode().equalsIgnoreCase("DROPPER") &&
-            feature.isUsingWhoRequeue()
-        ) {
-            String[] timeArgs;
-            if (
-                message.contains(":") &&
-                (timeArgs = message.split(":", 2)).length >= 1 &&
-                timeArgs[0].contains("finished all maps")
-            ) {
-                ((WhoRequeue) feature.getRequeue()).handlePlayer();
-            }
-        }
-
-        if (
-            feature.isUsingWhoRequeue() &&
-            (removedColors.startsWith("ONLINE:") || removedColors.startsWith("ALIVE:"))
-        ) {
-            parseAsWho(removedColors);
-        }
-
         hideCriteria(removedColors, event);
+    }
 
-        if (feature.isUsingWhoRequeue() && LocationManager.instance != null) {
-            String type = LocationManager.instance.getType();
-            if (type == null) return;
-            switch (type) {
-                case "SKYWARS":
-                    handleSkywars(removedColors);
-                    break;
-                case "WALLS":
-                    handleWalls(removedColors);
-                    break;
-                case "MCGO":
-                    handleCvc(removedColors);
-                    break;
-                default:
-                    break;
-            }
+    private void listenForFinalKills(String message) {
+        if (!message.contains("FINAL KILL!")) return;
+        if (LocationManager.instance == null) return;
+        if (!"BEDWARS".equalsIgnoreCase(LocationManager.instance.getType())) return;
+        // Eliminated player is always the first word regardless of kill message variant.
+        // Use indexOf instead of split to avoid allocating an entire String array.
+        int space = message.indexOf(' ');
+        if (space <= 0) return;
+        String eliminated = message.substring(0, space);
+        RequeueFeature feature = RequeueFeature.INSTANCE;
+        if (feature != null) {
+            feature.getRequeue().addFinalKill(eliminated);
         }
     }
 
     private void hideCriteria(String message, ClientChatReceivedEvent event) {
         if (criteria.isEmpty()) return;
-        boolean blocked = false;
         for (String s : criteria) {
             if (message.contains(s)) {
                 event.setCanceled(true);
-                blocked = true;
-                break;
-            }
-        }
-        if (blocked) {
-            criteria.clear();
-            waitingSince = Long.MAX_VALUE;
-            if (message.startsWith("ALIVE:")) {
-                criteria.add("DEAD:");
+                criteria.clear();
+                waitingSince = Long.MAX_VALUE;
+                return;
             }
         }
     }
@@ -195,90 +163,12 @@ public class ChatListener {
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
-        RequeueFeature feature = RequeueFeature.INSTANCE;
-        if (feature != null && feature.isUsingWhoRequeue()) {
-            LocationManager location = LocationManager.instance;
-            if (
-                location != null &&
-                location.getType() != null &&
-                !location.getType().equals("SKYWARS")
-            ) {
-                ((WhoRequeue) feature.getRequeue()).setDelayedValid(false);
-            }
-        }
         if (criteria.isEmpty()) return;
         if (waitingSince == Long.MAX_VALUE) {
             waitingSince = System.currentTimeMillis();
         } else if (System.currentTimeMillis() - waitingSince > 5000) {
             criteria.clear();
             waitingSince = Long.MAX_VALUE;
-        }
-    }
-
-    private void handleSkywars(String message) {
-        WhoRequeue who = (WhoRequeue) RequeueFeature.INSTANCE.getRequeue();
-        if (message.startsWith("Mode:")) {
-            who.clearWhoNames();
-            criteria.add("Team #");
-            who.setDelayedValid(false);
-            return;
-        }
-        if (!message.startsWith("Team #")) {
-            criteria.clear();
-            who.setDelayedValid(true);
-            return;
-        }
-        String[] split = message.split(" ");
-        if (split.length > 2) {
-            String playerName = split[2];
-            who.addWhoName(playerName);
-        }
-        criteria.add("Team #");
-    }
-
-    private static final String[] WALLS_COLORS = { "RED", "BLUE", "GREEN", "YELLOW" };
-
-    private void handleWalls(String message) {
-        WhoRequeue who = (WhoRequeue) RequeueFeature.INSTANCE.getRequeue();
-        if (message.startsWith("Players Alive")) {
-            who.clearWhoNames();
-            criteria.add("RED: ");
-            who.setDelayedValid(false);
-            return;
-        }
-        for (int i = 0; i < WALLS_COLORS.length; i++) {
-            String color = WALLS_COLORS[i];
-            if (!message.startsWith(color + ": ")) continue;
-            if (i < WALLS_COLORS.length - 1) {
-                criteria.add(WALLS_COLORS[i + 1] + ": ");
-            }
-            String[] players = message.split(": ", 2)[1].trim().split(", ");
-            for (String player : players) {
-                who.addWhoName(player.trim());
-            }
-            if ("YELLOW".equals(color)) {
-                who.setDelayedValid(true);
-            }
-            break;
-        }
-    }
-
-    private void handleCvc(String message) {
-        WhoRequeue who = (WhoRequeue) RequeueFeature.INSTANCE.getRequeue();
-        if (message.startsWith("Crims: ") || message.startsWith("Cops: ")) {
-            if (message.startsWith("Cops: ")) {
-                who.clearWhoNames();
-                criteria.add("Crims: ");
-                who.setDelayedValid(false);
-                return;
-            }
-            String[] playerNames = message.split(": ", 2)[1].trim().split(", ");
-            for (String playerName : playerNames) {
-                who.addWhoName(playerName.trim());
-            }
-            if (message.startsWith("Crims: ")) {
-                who.setDelayedValid(true);
-            }
         }
     }
 }

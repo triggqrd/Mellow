@@ -30,9 +30,8 @@ public class LocationManager {
         gameType = null;
         gameMode = null;
         awaitingLocraw = true;
-        if (RequeueFeature.INSTANCE != null && RequeueFeature.INSTANCE.getRequeue() != null) {
-            RequeueFeature.INSTANCE.getRequeue().requeueCleanup();
-        }
+        // requeueCleanup() is handled by WorldListener.onWorldLoad(),
+        // which is the only caller of invalidateLocraw()
     }
 
     public boolean isAwaitingLocraw() {
@@ -68,8 +67,7 @@ public class LocationManager {
             awaitingLocraw = true;
             return;
         }
-        chatHandler.criteria.clear();
-        chatHandler.criteria.add("{\"server\":");
+        chatHandler.setHideCriteria("{\"server\":");
         if (mc.thePlayer != null) {
             mc.thePlayer.sendChatMessage("/locraw");
         }

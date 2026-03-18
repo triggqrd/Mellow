@@ -3,7 +3,7 @@ package com.roxiun.mellow.feature.requeue.listeners;
 import com.roxiun.mellow.feature.requeue.AutododgeService;
 import com.roxiun.mellow.feature.requeue.LocationManager;
 import com.roxiun.mellow.feature.requeue.RequeueFeature;
-import com.roxiun.mellow.feature.requeue.auto.IAutoRequeue;
+import com.roxiun.mellow.feature.requeue.auto.TabRequeue;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -19,7 +19,7 @@ public class WorldListener {
             LocationManager.instance.invalidateLocraw();
         }
         feature.getTickListener().resetTimer();
-        IAutoRequeue requeue = feature.getRequeue();
+        TabRequeue requeue = feature.getRequeue();
         if (requeue != null) {
             requeue.requeueCleanup();
         }

@@ -97,6 +97,14 @@ public class MellowOneConfig extends Config {
     )
     public boolean requeueKickOffline = true;
 
+    @Text(
+        name = "Auto Requeue Delay (seconds)",
+        category = "Requeue",
+        description = "How many seconds to wait after everyone is dead before auto-requeueing. Supports decimals (e.g. 2.5).",
+        placeholder = "10"
+    )
+    public String requeueAutoDelay = "10";
+
     @Switch(
         name = "Requeue On Win",
         category = "Requeue",
